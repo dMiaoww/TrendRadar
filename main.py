@@ -204,6 +204,10 @@ def load_config():
         "bark_url", ""
     )
 
+    config["BARK_URL_1"] = os.environ.get("BARK_URL_1", "").strip() or webhooks.get(
+        "bark_url_1", ""
+    )
+
     # 输出配置来源信息
     notification_sources = []
     if config["FEISHU_WEBHOOK_URL"]:
@@ -232,6 +236,10 @@ def load_config():
     if config["BARK_URL"]:
         bark_source = "环境变量" if os.environ.get("BARK_URL") else "配置文件"
         notification_sources.append(f"Bark({bark_source})")
+
+    if config["BARK_URL_1"]:
+        bark_source_1 = "环境变量" if os.environ.get("BARK_URL_1") else "配置文件"
+        notification_sources.append(f"Bark({bark_source_1})")
 
     if notification_sources:
         print(f"通知渠道配置来源: {', '.join(notification_sources)}")
@@ -3416,6 +3424,7 @@ def send_to_notifications(
     ntfy_topic = CONFIG["NTFY_TOPIC"]
     ntfy_token = CONFIG.get("NTFY_TOKEN", "")
     bark_url = CONFIG["BARK_URL"]
+    bark_url_1 = CONFIG["BARK_URL_1"]
 
     update_info_to_send = update_info if CONFIG["SHOW_VERSION_UPDATE"] else None
 
@@ -3466,6 +3475,15 @@ def send_to_notifications(
     if bark_url:
         results["bark"] = send_to_bark(
             bark_url,
+            report_data,
+            report_type,
+            update_info_to_send,
+            proxy_url,
+            mode,
+        )
+    if bark_url_1:
+        results["bark_1"] = send_to_bark(
+            bark_url_1,
             report_data,
             report_type,
             update_info_to_send,
@@ -4381,7 +4399,7 @@ class NewsAnalyzer:
                     and CONFIG["EMAIL_TO"]
                 ),
                 (CONFIG["NTFY_SERVER_URL"] and CONFIG["NTFY_TOPIC"]),
-                CONFIG["BARK_URL"],
+                CONFIG["BARK_URL"], CONFIG["BARK_URL_1"]
             ]
         )
 
