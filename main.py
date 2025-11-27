@@ -19,6 +19,8 @@ import pytz
 import requests
 import yaml
 
+from difflib import SequenceMatcher
+
 
 VERSION = "3.3.0"
 
@@ -549,6 +551,8 @@ class DataFetcher:
                     data = json.loads(response)
                     results[id_value] = {}
                     for index, item in enumerate(data.get("items", []), 1):
+                        if(index > 9):
+                            break
                         title = item.get("title")
                         # 跳过无效标题（None、float、空字符串）
                         if title is None or isinstance(title, float) or not str(title).strip():
@@ -4637,6 +4641,50 @@ class NewsAnalyzer:
         mode_strategy = self._get_mode_strategy()
         print(f"报告模式: {self.report_mode}")
         print(f"运行模式: {mode_strategy['description']}")
+    
+    def _normalize_text(self, text: str) -> str:
+        """标准化文本，提高相似度判断准确性"""
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # 移除标点符号和特殊字符
+        text = re.sub(r'[^\w\s]', '', text)
+        # 转换为小写
+        text = text.lower()
+        # 移除多余空格
+        text = re.sub(r'\s+', ' ', text).strip()
+        # 移除常见停用词
+        stop_words = {'今日', '最新', '重磅', '突发', '快讯', '关注', '报道', '资讯'}
+        words = [word for word in text.split() if word not in stop_words]
+
+        return ' '.join(words)
+
+    def _calculate_similarity(self, text1: str, text2: str) -> float:
+        """计算两个文本的相似度 (0-1)"""
+        normalized1 = self._normalize_text(text1)
+        normalized2 = self._normalize_text(text2)
+        
+        return SequenceMatcher(None, normalized1, normalized2).ratio()
+
+    def _filter_similar_titles(self, results: Dict) -> Dict:
+        """根据相似度过滤标题"""
+        filtered_results = {}
+        for source_id, titles_data in results.items():
+            titles = list(titles_data.keys())
+            for title in titles:
+                is_similar = False
+                for _, filtered_titles in filtered_results.items():
+                    for other_title in filtered_titles.keys():
+                        similarity = self._calculate_similarity(title, other_title)
+                        if similarity >= 0.35:
+                            is_similar = True
+                            print(f"过滤相似标题: '{title}' 与 '{other_title}' 相似度 {similarity:.2f}")
+                            break
+                if not is_similar:
+                    if source_id not in filtered_results:
+                        filtered_results[source_id] = {}
+                    filtered_results[source_id][title] = titles_data[title]
+        return filtered_results
 
     def _crawl_data(self) -> Tuple[Dict, Dict, List]:
         """执行数据爬取"""
@@ -4656,6 +4704,13 @@ class NewsAnalyzer:
         results, id_to_name, failed_ids = self.data_fetcher.crawl_websites(
             ids, self.request_interval
         )
+        all_number = sum(len(titles) for titles in results.values())
+        print(f"爬取到的标题总数: {all_number}")
+
+        # 根据相似度过滤
+        results = self._filter_similar_titles(results)
+        all_number = sum(len(titles) for titles in results.values())
+        print(f"过滤后的标题总数: {all_number}")
 
         title_file = save_titles_to_file(results, id_to_name, failed_ids)
         print(f"标题已保存到: {title_file}")
