@@ -9,7 +9,7 @@ on:
     # - "*/30 * * * *"      # 每 30 分钟执行一次
     # - "*/30 0-14 * * *"   # 每天 UTC 0:00-14:00（北京时间 8:00-22:00），每 30 分钟运行一次
     # - "0 0,6,12,18 * * *" # 每天 UTC 0:00,6:00,12:00,18:00（北京时间 8:00,14:00,20:00,次日2:00）
-    - cron: "0 * * * *"
+    - cron: "0 0,4,8,12 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -71,6 +71,7 @@ jobs:
           NTFY_SERVER_URL: ${{ secrets.NTFY_SERVER_URL }}
           NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
           BARK_URL: ${{ secrets.BARK_URL }}
+          BARK_URL_1: ${{ secrets.BARK_URL_1 }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           GITHUB_ACTIONS: true
         run: python main.py
